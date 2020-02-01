@@ -1,0 +1,86 @@
+---
+version: '3'
+
+services:
+  kafka-redis-connector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: herakles_kafka_redis_connector
+    depends_on:
+      - broker
+      - redis
+    environment:
+      KAFKA_CLIENT_ID: "my-test"
+      KAKFA_CONSUMER_ID: "my-test"
+      KAFKA_TOPIC: "test"
+      KAFKA_FROM_BEGINNING: "true"
+      KAFKA_BROKERS: "broker:29092"
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      REDIS_HASH_KEY: "test"
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:5.4.0
+    hostname: zookeeper
+    container_name: herakles_kafka_zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  broker:
+    image: confluentinc/cp-server:5.4.0
+    hostname: broker
+    container_name: herakles_kafka_broker
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_METRIC_REPORTERS: io.confluent.metrics.reporter.ConfluentMetricsReporter
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: broker:29092
+      CONFLUENT_METRICS_REPORTER_ZOOKEEPER_CONNECT: zookeeper:2181
+      CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 1
+      CONFLUENT_METRICS_ENABLE: 'true'
+      CONFLUENT_SUPPORT_CUSTOMER_ID: 'anonymous'
+
+  control-center:
+    image: confluentinc/cp-enterprise-control-center:5.4.0
+    hostname: control-center
+    container_name: herakles_kafka_control-center
+    depends_on:
+      - zookeeper
+      - broker
+    ports:
+      - "9021:9021"
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: 'broker:29092'
+      CONTROL_CENTER_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      CONTROL_CENTER_REPLICATION_FACTOR: 1
+      CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
+      CONFLUENT_METRICS_TOPIC_REPLICATION: 1
+      PORT: 9021
+
+  redis:
+    image: redis
+    container_name: herakles_kafka_redis
+    ports:
+      - "6379:6379"
+
+  redis-commander:
+    image: rediscommander/redis-commander
+    container_name: herakles_kafka_redis_commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
